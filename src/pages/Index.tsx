@@ -32,17 +32,10 @@ const Index = () => {
     setState("thinking");
     setCurrentAssistantMessage("");
 
-    // Clear and reset audio queue for new response
+    // Clear existing queue for new response
     if (audioQueueRef.current) {
       audioQueueRef.current.clear();
     }
-    audioQueueRef.current = new AudioQueue(() => {
-      console.log('Audio playback finished');
-      // Only return to listening if still active
-      if (shouldProcessAudioRef.current) {
-        setState("listening");
-      }
-    });
 
     try {
       await startVoiceStream(audioBlob, messages, {
@@ -94,6 +87,15 @@ const Index = () => {
     try {
       console.log('Creating audio recorder...');
       audioRecorderRef.current = new AudioRecorder();
+      
+      // Create audio queue once
+      audioQueueRef.current = new AudioQueue(() => {
+        console.log('Audio playback finished');
+        if (shouldProcessAudioRef.current) {
+          setState("listening");
+        }
+      });
+      
       console.log('Requesting microphone access...');
       await audioRecorderRef.current.start(handleAudioData);
       console.log('Microphone started successfully');
