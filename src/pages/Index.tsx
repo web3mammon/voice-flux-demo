@@ -32,10 +32,16 @@ const Index = () => {
     setState("thinking");
     setCurrentAssistantMessage("");
 
-    // Initialize audio queue
+    // Clear and reset audio queue for new response
+    if (audioQueueRef.current) {
+      audioQueueRef.current.clear();
+    }
     audioQueueRef.current = new AudioQueue(() => {
       console.log('Audio playback finished');
-      setState("listening");
+      // Only return to listening if still active
+      if (shouldProcessAudioRef.current) {
+        setState("listening");
+      }
     });
 
     try {
