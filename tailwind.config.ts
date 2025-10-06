@@ -65,25 +65,45 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { 
+            boxShadow: "0 0 20px hsl(263 70% 60% / 0.5), 0 0 40px hsl(263 70% 60% / 0.3)",
+            transform: "scale(1)"
           },
-          to: {
-            height: "0",
+          "50%": { 
+            boxShadow: "0 0 40px hsl(263 70% 60% / 0.8), 0 0 80px hsl(263 70% 60% / 0.5)",
+            transform: "scale(1.05)"
           },
+        },
+        "listening-pulse": {
+          "0%, 100%": { 
+            boxShadow: "0 0 30px hsl(217 91% 60% / 0.6), 0 0 60px hsl(217 91% 60% / 0.4)",
+          },
+          "50%": { 
+            boxShadow: "0 0 50px hsl(217 91% 60% / 0.9), 0 0 100px hsl(217 91% 60% / 0.6)",
+          },
+        },
+        "fade-in": {
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow": "pulse-glow var(--pulse-duration) ease-in-out infinite",
+        "listening-pulse": "listening-pulse 1.5s ease-in-out infinite",
+        "fade-in": "fade-in 0.4s ease-out",
+      },
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
       },
     },
   },
