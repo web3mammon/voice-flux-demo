@@ -32,7 +32,7 @@ serve(async (req) => {
     formData.append('file', audioBlob);
 
     const transcribeResponse = await fetch(
-      'https://api.deepgram.com/v1/listen?model=flux&smart_format=true&punctuate=true&vad_events=true',
+      'https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&punctuate=true',
       {
         method: 'POST',
         headers: {
