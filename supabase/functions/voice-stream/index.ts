@@ -105,8 +105,6 @@ serve(async (req) => {
           const decoder = new TextDecoder();
           let buffer = '';
           let fullText = '';
-          let chunkBuffer = '';
-          const CHUNK_SIZE = 20; // tokens per chunk
 
           while (true) {
             const { done, value } = await reader.read();
@@ -127,24 +125,12 @@ serve(async (req) => {
                   
                   if (content) {
                     fullText += content;
-                    chunkBuffer += content;
 
                     // Send text delta
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
                       type: 'text_delta', 
                       text: content 
                     })}\n\n`));
-
-                    // Check if we should send to ElevenLabs
-                    const words = chunkBuffer.split(/\s+/).filter(w => w.length > 0);
-                    if (words.length >= CHUNK_SIZE) {
-                      console.log('Sending chunk to ElevenLabs:', chunkBuffer);
-                      
-                      // Stream audio from ElevenLabs directly
-                      await streamAudioFromElevenLabs(chunkBuffer, ELEVENLABS_API_KEY, controller, encoder);
-                      
-                      chunkBuffer = '';
-                    }
                   }
                 } catch (e) {
                   console.error('Parse error:', e);
@@ -153,10 +139,16 @@ serve(async (req) => {
             }
           }
 
-          // CRITICAL: Send remaining chunk (last chunk, regardless of size)
-          if (chunkBuffer.trim()) {
-            console.log('Sending final chunk to ElevenLabs:', chunkBuffer);
-            await streamAudioFromElevenLabs(chunkBuffer, ELEVENLABS_API_KEY, controller, encoder);
+          // Send COMPLETE text to ElevenLabs once
+          if (fullText.trim()) {
+            console.log('Sending complete response to ElevenLabs:', fullText);
+            const audioChunk = await generateAudio(fullText, ELEVENLABS_API_KEY);
+            if (audioChunk) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                type: 'audio_chunk', 
+                audio: audioChunk 
+              })}\n\n`));
+            }
           }
 
           // Send completion
@@ -199,15 +191,10 @@ serve(async (req) => {
   }
 });
 
-async function streamAudioFromElevenLabs(
-  text: string, 
-  apiKey: string, 
-  controller: ReadableStreamDefaultController,
-  encoder: TextEncoder
-): Promise<void> {
+async function generateAudio(text: string, apiKey: string): Promise<string | null> {
   try {
     const response = await fetch(
-      'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM/stream',
+      'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM',
       {
         method: 'POST',
         headers: {
@@ -221,43 +208,28 @@ async function streamAudioFromElevenLabs(
             stability: 0.5,
             similarity_boost: 0.75,
           },
-          optimize_streaming_latency: 3,
         }),
       }
     );
 
     if (!response.ok) {
       console.error('ElevenLabs error:', await response.text());
-      return;
+      return null;
     }
 
-    const reader = response.body?.getReader();
-    if (!reader) {
-      console.error('No response body from ElevenLabs');
-      return;
+    const audioArrayBuffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(audioArrayBuffer);
+    
+    // Convert to base64 in chunks to avoid stack overflow
+    let binary = '';
+    const chunkSize = 0x8000; // 32KB chunks
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
     }
-
-    // Stream audio chunks as they arrive from ElevenLabs
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      // Convert chunk to base64 in chunks to avoid stack overflow
-      let binary = '';
-      const chunkSize = 0x8000; // 32KB chunks
-      for (let i = 0; i < value.length; i += chunkSize) {
-        const chunk = value.subarray(i, Math.min(i + chunkSize, value.length));
-        binary += String.fromCharCode.apply(null, Array.from(chunk));
-      }
-      const base64Audio = btoa(binary);
-
-      // Send audio chunk immediately to client
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-        type: 'audio_chunk', 
-        audio: base64Audio 
-      })}\n\n`));
-    }
+    return btoa(binary);
   } catch (error) {
-    console.error('Error streaming audio from ElevenLabs:', error);
+    console.error('Error generating audio:', error);
+    return null;
   }
 }
