@@ -3,6 +3,15 @@ export class AudioRecorder {
   private audioChunks: Blob[] = [];
   private stream: MediaStream | null = null;
   private onDataCallback: ((audioBlob: Blob) => void) | null = null;
+  private audioContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private vadCheckInterval: number | null = null;
+  private isSpeaking: boolean = false;
+  private silenceStart: number | null = null;
+  private speechStart: number | null = null;
+  private readonly SILENCE_THRESHOLD = 0.01; // Volume threshold for silence
+  private readonly SILENCE_DURATION = 1500; // ms of silence before stopping
+  private readonly MIN_SPEECH_DURATION = 500; // ms minimum speech before considering it valid
 
   async start(onData: (audioBlob: Blob) => void) {
     try {
@@ -18,6 +27,14 @@ export class AudioRecorder {
         } 
       });
       console.log('Microphone access granted, stream:', this.stream);
+
+      // Set up audio analysis for VAD
+      this.audioContext = new AudioContext();
+      const source = this.audioContext.createMediaStreamSource(this.stream);
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 2048;
+      source.connect(this.analyser);
+      console.log('Audio analyser created for VAD');
 
       const mimeType = 'audio/webm;codecs=opus';
       console.log('Creating MediaRecorder with mimeType:', mimeType);
@@ -43,6 +60,12 @@ export class AudioRecorder {
           console.log('Created audio blob, size:', audioBlob.size);
           this.onDataCallback?.(audioBlob);
           this.audioChunks = [];
+          
+          // Restart recording if still in recording mode (for continuous VAD)
+          if (this.mediaRecorder && this.stream && this.vadCheckInterval) {
+            console.log('Restarting MediaRecorder for next utterance...');
+            this.mediaRecorder.start();
+          }
         } else {
           console.warn('No audio chunks available in onstop');
         }
@@ -52,23 +75,101 @@ export class AudioRecorder {
         console.error('MediaRecorder error:', event);
       };
 
-      // Collect audio in 2-second chunks for VAD
-      console.log('Starting MediaRecorder with 2000ms timeslice...');
-      this.mediaRecorder.start(2000);
+      // Start continuous recording
+      console.log('Starting MediaRecorder...');
+      this.mediaRecorder.start();
       console.log('MediaRecorder started, state:', this.mediaRecorder.state);
-      console.log('Audio recorder started');
+      
+      // Start VAD monitoring
+      this.startVAD();
+      console.log('Audio recorder started with VAD');
     } catch (error) {
       console.error('Error starting audio recorder:', error);
       throw error;
     }
   }
 
+  private startVAD() {
+    console.log('Starting VAD monitoring...');
+    this.vadCheckInterval = window.setInterval(() => {
+      if (!this.analyser) return;
+
+      const bufferLength = this.analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      this.analyser.getByteTimeDomainData(dataArray);
+
+      // Calculate RMS (volume)
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const normalized = (dataArray[i] - 128) / 128;
+        sum += normalized * normalized;
+      }
+      const rms = Math.sqrt(sum / bufferLength);
+
+      const now = Date.now();
+      
+      if (rms > this.SILENCE_THRESHOLD) {
+        // Speech detected
+        if (!this.isSpeaking) {
+          console.log('Speech started, RMS:', rms);
+          this.isSpeaking = true;
+          this.speechStart = now;
+        }
+        this.silenceStart = null;
+      } else {
+        // Silence detected
+        if (this.isSpeaking && !this.silenceStart) {
+          console.log('Silence started');
+          this.silenceStart = now;
+        }
+
+        // Check if silence duration exceeded and we have valid speech
+        if (this.isSpeaking && this.silenceStart && this.speechStart) {
+          const silenceDuration = now - this.silenceStart;
+          const speechDuration = this.silenceStart - this.speechStart;
+          
+          if (silenceDuration >= this.SILENCE_DURATION && speechDuration >= this.MIN_SPEECH_DURATION) {
+            console.log(`Speech ended after ${speechDuration}ms, silence for ${silenceDuration}ms`);
+            this.processRecording();
+          }
+        }
+      }
+    }, 100); // Check every 100ms
+  }
+
+  private processRecording() {
+    console.log('Processing recording due to VAD...');
+    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+      this.mediaRecorder.stop();
+      // Reset VAD state
+      this.isSpeaking = false;
+      this.silenceStart = null;
+      this.speechStart = null;
+    }
+  }
+
   stop() {
-    console.log('AudioRecorder.stop() called, mediaRecorder state:', this.mediaRecorder?.state);
+    console.log('AudioRecorder.stop() called');
+    
+    // Stop VAD monitoring
+    if (this.vadCheckInterval) {
+      clearInterval(this.vadCheckInterval);
+      this.vadCheckInterval = null;
+    }
+    
+    // Stop media recorder
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       console.log('Stopping MediaRecorder...');
       this.mediaRecorder.stop();
     }
+    
+    // Stop audio context
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
+    }
+    
+    // Stop stream
     if (this.stream) {
       console.log('Stopping stream tracks...');
       this.stream.getTracks().forEach(track => {
@@ -76,7 +177,12 @@ export class AudioRecorder {
         track.stop();
       });
     }
+    
     this.audioChunks = [];
+    this.analyser = null;
+    this.isSpeaking = false;
+    this.silenceStart = null;
+    this.speechStart = null;
     console.log('Audio recorder stopped');
   }
 
