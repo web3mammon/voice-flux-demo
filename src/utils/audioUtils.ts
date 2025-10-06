@@ -9,6 +9,7 @@ export class AudioRecorder {
   private isSpeaking: boolean = false;
   private silenceStart: number | null = null;
   private speechStart: number | null = null;
+  private isActive: boolean = false; // Track if we should continue recording
   private readonly SILENCE_THRESHOLD = 0.01; // Volume threshold for silence
   private readonly SILENCE_DURATION = 1500; // ms of silence before stopping
   private readonly MIN_SPEECH_DURATION = 500; // ms minimum speech before considering it valid
@@ -16,6 +17,7 @@ export class AudioRecorder {
   async start(onData: (audioBlob: Blob) => void) {
     try {
       console.log('AudioRecorder.start() called');
+      this.isActive = true;
       this.onDataCallback = onData;
       
       console.log('Requesting microphone access...');
@@ -61,8 +63,8 @@ export class AudioRecorder {
           this.onDataCallback?.(audioBlob);
           this.audioChunks = [];
           
-          // Restart recording if still in recording mode (for continuous VAD)
-          if (this.mediaRecorder && this.stream && this.vadCheckInterval) {
+          // Restart recording only if we're still actively listening
+          if (this.isActive && this.mediaRecorder && this.stream && this.vadCheckInterval) {
             console.log('Restarting MediaRecorder for next utterance...');
             this.mediaRecorder.start();
           }
@@ -150,6 +152,7 @@ export class AudioRecorder {
 
   stop() {
     console.log('AudioRecorder.stop() called');
+    this.isActive = false; // Prevent restart
     
     // Stop VAD monitoring
     if (this.vadCheckInterval) {
