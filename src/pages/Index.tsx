@@ -89,9 +89,12 @@ const Index = () => {
       audioRecorderRef.current = new AudioRecorder();
       console.log('Requesting microphone access...');
       await audioRecorderRef.current.start(handleAudioData);
+      console.log('Microphone started successfully');
       
       setIsActive(true);
       setState("listening");
+      
+      console.log('State set to listening, isActive:', true);
       
       toast({
         title: "Listening",
@@ -99,15 +102,19 @@ const Index = () => {
       });
     } catch (error) {
       console.error('Error starting conversation:', error);
+      console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      
       toast({
         title: "Error",
-        description: "Could not access microphone. Please check permissions.",
+        description: error instanceof Error ? error.message : "Could not access microphone. Please check permissions.",
         variant: "destructive",
       });
     }
   };
 
   const stopConversation = () => {
+    console.log('stopConversation called');
     audioRecorderRef.current?.stop();
     audioQueueRef.current?.stop();
     
