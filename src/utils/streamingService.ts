@@ -17,11 +17,15 @@ export const startVoiceStream = async (
   callbacks: StreamCallbacks
 ) => {
   try {
+    console.log('Converting audio blob to base64...');
     const arrayBuffer = await audioBlob.arrayBuffer();
     const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    console.log('Audio converted, size:', base64Audio.length);
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    console.log('Calling edge function at:', `${supabaseUrl}/functions/v1/voice-stream`);
 
     const response = await fetch(`${supabaseUrl}/functions/v1/voice-stream`, {
       method: 'POST',
@@ -38,19 +42,32 @@ export const startVoiceStream = async (
       }),
     });
 
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Edge function error response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
 
+    console.log('Starting to read stream...');
     const reader = response.body?.getReader();
-    if (!reader) throw new Error('No response body');
+    if (!reader) {
+      console.error('No response body reader available');
+      throw new Error('No response body');
+    }
 
     const decoder = new TextDecoder();
     let buffer = '';
 
     while (true) {
+      console.log('Reading stream chunk...');
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        console.log('Stream complete');
+        break;
+      }
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
@@ -62,6 +79,7 @@ export const startVoiceStream = async (
           
           try {
             const parsed = JSON.parse(data);
+            console.log('Received event:', parsed.type);
 
             switch (parsed.type) {
               case 'empty':

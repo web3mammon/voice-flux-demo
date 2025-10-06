@@ -21,8 +21,13 @@ const Index = () => {
   const audioQueueRef = useRef<AudioQueue | null>(null);
 
   const handleAudioData = async (audioBlob: Blob) => {
-    if (state !== "listening") return;
+    console.log('handleAudioData called, state:', state);
+    if (state !== "listening") {
+      console.log('Not in listening state, ignoring audio');
+      return;
+    }
 
+    console.log('Setting state to thinking, audio blob size:', audioBlob.size);
     setState("thinking");
     setCurrentAssistantMessage("");
 
@@ -63,18 +68,26 @@ const Index = () => {
       });
     } catch (error) {
       console.error('Error processing voice:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       toast({
         title: "Error",
-        description: "Failed to process voice input. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to process voice input",
         variant: "destructive",
       });
       setState("listening");
+      setCurrentAssistantMessage("");
     }
   };
 
   const startConversation = async () => {
+    console.log('Starting conversation...');
     try {
+      console.log('Creating audio recorder...');
       audioRecorderRef.current = new AudioRecorder();
+      console.log('Requesting microphone access...');
       await audioRecorderRef.current.start(handleAudioData);
       
       setIsActive(true);
