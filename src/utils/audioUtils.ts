@@ -10,6 +10,7 @@ export class AudioRecorder {
   private silenceStart: number | null = null;
   private speechStart: number | null = null;
   private isActive: boolean = false; // Track if we should continue recording
+  private isProcessing: boolean = false; // Track if we're currently processing audio
   private readonly SILENCE_THRESHOLD = 0.01; // Volume threshold for silence
   private readonly SILENCE_DURATION = 1500; // ms of silence before stopping
   private readonly MIN_SPEECH_DURATION = 500; // ms minimum speech before considering it valid
@@ -60,6 +61,9 @@ export class AudioRecorder {
         if (this.audioChunks.length > 0) {
           const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
           console.log('Created audio blob, size:', audioBlob.size);
+          
+          // Mark as processing to prevent VAD from triggering during processing
+          this.isProcessing = true;
           this.onDataCallback?.(audioBlob);
           this.audioChunks = [];
           
@@ -67,6 +71,10 @@ export class AudioRecorder {
           if (this.isActive && this.mediaRecorder && this.stream && this.vadCheckInterval) {
             console.log('Restarting MediaRecorder for next utterance...');
             this.mediaRecorder.start();
+            // Reset processing flag after restart
+            setTimeout(() => {
+              this.isProcessing = false;
+            }, 100);
           }
         } else {
           console.warn('No audio chunks available in onstop');
@@ -140,6 +148,12 @@ export class AudioRecorder {
   }
 
   private processRecording() {
+    // Don't process if already processing or not in recording state
+    if (this.isProcessing) {
+      console.log('Already processing audio, skipping VAD trigger');
+      return;
+    }
+    
     console.log('Processing recording due to VAD...');
     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
       this.mediaRecorder.stop();
@@ -153,6 +167,7 @@ export class AudioRecorder {
   stop() {
     console.log('AudioRecorder.stop() called');
     this.isActive = false; // Prevent restart
+    this.isProcessing = false; // Reset processing flag
     
     // Stop VAD monitoring
     if (this.vadCheckInterval) {
