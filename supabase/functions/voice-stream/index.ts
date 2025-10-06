@@ -140,13 +140,8 @@ serve(async (req) => {
                     if (words.length >= CHUNK_SIZE) {
                       console.log('Sending chunk to ElevenLabs:', chunkBuffer);
                       
-                      const audioChunk = await generateAudio(chunkBuffer, ELEVENLABS_API_KEY);
-                      if (audioChunk) {
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-                          type: 'audio_chunk', 
-                          audio: audioChunk 
-                        })}\n\n`));
-                      }
+                      // Stream audio from ElevenLabs directly
+                      await streamAudioFromElevenLabs(chunkBuffer, ELEVENLABS_API_KEY, controller, encoder);
                       
                       chunkBuffer = '';
                     }
@@ -161,13 +156,7 @@ serve(async (req) => {
           // CRITICAL: Send remaining chunk (last chunk, regardless of size)
           if (chunkBuffer.trim()) {
             console.log('Sending final chunk to ElevenLabs:', chunkBuffer);
-            const audioChunk = await generateAudio(chunkBuffer, ELEVENLABS_API_KEY);
-            if (audioChunk) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-                type: 'audio_chunk', 
-                audio: audioChunk 
-              })}\n\n`));
-            }
+            await streamAudioFromElevenLabs(chunkBuffer, ELEVENLABS_API_KEY, controller, encoder);
           }
 
           // Send completion
@@ -210,10 +199,15 @@ serve(async (req) => {
   }
 });
 
-async function generateAudio(text: string, apiKey: string): Promise<string | null> {
+async function streamAudioFromElevenLabs(
+  text: string, 
+  apiKey: string, 
+  controller: ReadableStreamDefaultController,
+  encoder: TextEncoder
+): Promise<void> {
   try {
     const response = await fetch(
-      'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM',
+      'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM/stream',
       {
         method: 'POST',
         headers: {
@@ -227,28 +221,43 @@ async function generateAudio(text: string, apiKey: string): Promise<string | nul
             stability: 0.5,
             similarity_boost: 0.75,
           },
+          optimize_streaming_latency: 3,
         }),
       }
     );
 
     if (!response.ok) {
       console.error('ElevenLabs error:', await response.text());
-      return null;
+      return;
     }
 
-    const audioArrayBuffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(audioArrayBuffer);
-    
-    // Convert to base64 in chunks to avoid stack overflow
-    let binary = '';
-    const chunkSize = 0x8000; // 32KB chunks
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    const reader = response.body?.getReader();
+    if (!reader) {
+      console.error('No response body from ElevenLabs');
+      return;
     }
-    return btoa(binary);
+
+    // Stream audio chunks as they arrive from ElevenLabs
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      // Convert chunk to base64 in chunks to avoid stack overflow
+      let binary = '';
+      const chunkSize = 0x8000; // 32KB chunks
+      for (let i = 0; i < value.length; i += chunkSize) {
+        const chunk = value.subarray(i, Math.min(i + chunkSize, value.length));
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      const base64Audio = btoa(binary);
+
+      // Send audio chunk immediately to client
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+        type: 'audio_chunk', 
+        audio: base64Audio 
+      })}\n\n`));
+    }
   } catch (error) {
-    console.error('Error generating audio:', error);
-    return null;
+    console.error('Error streaming audio from ElevenLabs:', error);
   }
 }
