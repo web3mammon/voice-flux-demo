@@ -238,7 +238,16 @@ async function generateAudio(text: string, apiKey: string): Promise<string | nul
     }
 
     const audioArrayBuffer = await response.arrayBuffer();
-    return btoa(String.fromCharCode(...new Uint8Array(audioArrayBuffer)));
+    const bytes = new Uint8Array(audioArrayBuffer);
+    
+    // Convert to base64 in chunks to avoid stack overflow
+    let binary = '';
+    const chunkSize = 0x8000; // 32KB chunks
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    return btoa(binary);
   } catch (error) {
     console.error('Error generating audio:', error);
     return null;
