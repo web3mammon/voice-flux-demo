@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Mic, Brain, Volume2, Circle } from "lucide-react";
 
 type ConversationState = "idle" | "listening" | "thinking" | "speaking";
 
@@ -17,6 +18,19 @@ const VoiceOrb = ({ state }: VoiceOrbProps) => {
         return "animate-pulse-glow bg-gradient-to-br from-primary to-primary/50";
       default:
         return "bg-gradient-to-br from-muted to-muted/50";
+    }
+  };
+
+  const getIcon = () => {
+    switch (state) {
+      case "listening":
+        return <Mic className="h-20 w-20 text-white" />;
+      case "thinking":
+        return <Brain className="h-20 w-20 text-white" />;
+      case "speaking":
+        return <Volume2 className="h-20 w-20 text-white" />;
+      default:
+        return <Circle className="h-20 w-20 text-white" />;
     }
   };
 
@@ -40,7 +54,7 @@ const VoiceOrb = ({ state }: VoiceOrbProps) => {
         {/* Main orb */}
         <div
           className={cn(
-            "w-64 h-64 rounded-full backdrop-blur-xl border border-white/10 transition-all duration-500",
+            "w-72 h-72 rounded-full backdrop-blur-xl border border-white/10 transition-all duration-500",
             getOrbClasses(),
             "flex items-center justify-center relative overflow-hidden"
           )}
@@ -48,21 +62,20 @@ const VoiceOrb = ({ state }: VoiceOrbProps) => {
           {/* Inner gradient overlay */}
           <div className="absolute inset-0 bg-gradient-radial from-white/10 via-transparent to-transparent" />
           
-          {/* State icon/text */}
-          <div className="relative z-10 text-center space-y-2">
-            <div className={cn(
-              "text-6xl transition-transform duration-300",
-              state !== "idle" && "scale-110"
-            )}>
-              {state === "listening" && "👂"}
-              {state === "thinking" && "🤔"}
-              {state === "speaking" && "💬"}
-              {state === "idle" && "⚡"}
-            </div>
-            <p className="text-sm font-medium text-white/80 uppercase tracking-wider">
-              {state}
-            </p>
+          {/* State icon */}
+          <div className={cn(
+            "relative z-10 transition-transform duration-300",
+            state !== "idle" && "scale-110"
+          )}>
+            {getIcon()}
           </div>
+        </div>
+
+        {/* State label */}
+        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 text-center">
+          <p className="text-sm font-light text-white/60 uppercase tracking-widest">
+            {state}
+          </p>
         </div>
       </div>
     </div>
