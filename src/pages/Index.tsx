@@ -19,15 +19,16 @@ const Index = () => {
   
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const audioQueueRef = useRef<AudioQueue | null>(null);
+  const shouldProcessAudioRef = useRef<boolean>(false);
 
   const handleAudioData = async (audioBlob: Blob) => {
-    console.log('handleAudioData called, state:', state);
-    if (state !== "listening") {
-      console.log('Not in listening state, ignoring audio');
+    console.log('handleAudioData called, shouldProcess:', shouldProcessAudioRef.current);
+    if (!shouldProcessAudioRef.current) {
+      console.log('Not processing audio - conversation not active');
       return;
     }
 
-    console.log('Setting state to thinking, audio blob size:', audioBlob.size);
+    console.log('Processing audio, blob size:', audioBlob.size);
     setState("thinking");
     setCurrentAssistantMessage("");
 
@@ -91,10 +92,11 @@ const Index = () => {
       await audioRecorderRef.current.start(handleAudioData);
       console.log('Microphone started successfully');
       
+      shouldProcessAudioRef.current = true;
       setIsActive(true);
       setState("listening");
       
-      console.log('State set to listening, isActive:', true);
+      console.log('State set to listening, shouldProcess:', true);
       
       toast({
         title: "Listening",
@@ -115,6 +117,7 @@ const Index = () => {
 
   const stopConversation = () => {
     console.log('stopConversation called');
+    shouldProcessAudioRef.current = false;
     audioRecorderRef.current?.stop();
     audioQueueRef.current?.stop();
     
