@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 interface Message {
   role: "user" | "assistant";
-  text: string;
+  content: string;
 }
 
 interface TranscriptDisplayProps {
@@ -35,7 +35,7 @@ const TranscriptDisplay = ({ transcript }: TranscriptDisplayProps) => {
                     : "bg-gradient-to-r from-primary to-primary/80 text-white"
                 )}
               >
-                <p className="text-sm leading-relaxed">{message.text}</p>
+                <p className="text-sm leading-relaxed">{message.content}</p>
               </div>
             </div>
           ))}

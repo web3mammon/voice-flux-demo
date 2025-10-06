@@ -1,26 +1,102 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import VoiceOrb from "@/components/VoiceOrb";
 import TranscriptDisplay from "@/components/TranscriptDisplay";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { AudioRecorder, playAudioFromBase64 } from "@/utils/audioUtils";
+import { processVoiceInput, type Message } from "@/utils/voiceService";
 
 type ConversationState = "idle" | "listening" | "thinking" | "speaking";
 
 const Index = () => {
   const [state, setState] = useState<ConversationState>("idle");
-  const [transcript, setTranscript] = useState<Array<{ role: "user" | "assistant"; text: string }>>([]);
+  const [transcript, setTranscript] = useState<Message[]>([]);
   const [isActive, setIsActive] = useState(false);
+  const { toast } = useToast();
+  
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const startConversation = () => {
-    setIsActive(true);
-    setState("listening");
-    // TODO: Initialize voice pipeline
+  const handleAudioData = async (audioBlob: Blob) => {
+    if (state !== "listening") return;
+
+    setState("thinking");
+    console.log('Processing audio chunk...');
+
+    try {
+      const result = await processVoiceInput(audioBlob, transcript);
+
+      if (!result.userText.trim()) {
+        setState("listening");
+        return;
+      }
+
+      // Add user message
+      const userMessage: Message = { role: "user", content: result.userText };
+      setTranscript(prev => [...prev, userMessage]);
+
+      if (result.aiText && result.audioContent) {
+        setState("speaking");
+
+        // Add AI message
+        const aiMessage: Message = { role: "assistant", content: result.aiText };
+        setTranscript(prev => [...prev, aiMessage]);
+
+        // Play audio
+        currentAudioRef.current = await playAudioFromBase64(result.audioContent);
+        
+        currentAudioRef.current.onended = () => {
+          setState("listening");
+          currentAudioRef.current = null;
+        };
+      } else {
+        setState("listening");
+      }
+    } catch (error) {
+      console.error('Error processing voice:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process voice input. Please try again.",
+        variant: "destructive",
+      });
+      setState("listening");
+    }
+  };
+
+  const startConversation = async () => {
+    try {
+      audioRecorderRef.current = new AudioRecorder();
+      await audioRecorderRef.current.start(handleAudioData);
+      
+      setIsActive(true);
+      setState("listening");
+      
+      toast({
+        title: "Listening",
+        description: "Start speaking! I'll process your voice automatically.",
+      });
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      toast({
+        title: "Error",
+        description: "Could not access microphone. Please check permissions.",
+        variant: "destructive",
+      });
+    }
   };
 
   const stopConversation = () => {
+    audioRecorderRef.current?.stop();
+    currentAudioRef.current?.pause();
+    
     setIsActive(false);
     setState("idle");
-    // TODO: Cleanup voice pipeline
+    
+    toast({
+      title: "Conversation Ended",
+      description: "Voice session has been terminated.",
+    });
   };
 
   return (
