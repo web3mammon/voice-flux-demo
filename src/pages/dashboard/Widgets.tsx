@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Copy, Upload, MessageSquare, Sparkles, Phone } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { WidgetPreview } from "@/components/WidgetPreview";
 
 const PRESET_ICONS = [
   { name: "Message", icon: MessageSquare },
@@ -179,7 +180,9 @@ export default function Widgets() {
         </p>
       </div>
 
-      <Tabs defaultValue="appearance" className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          <Tabs defaultValue="appearance" className="space-y-6">
         <TabsList>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="behavior">Behavior</TabsTrigger>
@@ -226,8 +229,8 @@ export default function Widgets() {
                     placeholder="#6366f1"
                   />
                   <div
-                    className="w-12 h-10 rounded border"
-                    style={{ backgroundColor: config?.primary_color }}
+                    className="w-12 h-10 rounded border border-border"
+                    style={{ backgroundColor: config?.primary_color || "#6366f1" }}
                   />
                 </div>
               </div>
@@ -441,6 +444,27 @@ export default function Widgets() {
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save Configuration
         </Button>
+      </div>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Live Preview</CardTitle>
+              <CardDescription>
+                See how your widget will appear on your website
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WidgetPreview
+                position={config?.position || "bottom-right"}
+                primaryColor={config?.primary_color || "#6366f1"}
+                buttonText={config?.button_text || "Talk to Sales"}
+                buttonIcon={config?.button_icon_url}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
