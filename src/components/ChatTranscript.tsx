@@ -61,6 +61,22 @@ const ChatTranscript = ({ messages, currentAssistantMessage, state }: ChatTransc
             </div>
           ))}
 
+          {/* Thinking state indicator */}
+          {state === "thinking" && !currentAssistantMessage && (
+            <div className="flex gap-4 animate-fade-in justify-start">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center">
+                <Bot className="h-5 w-5 text-white" />
+              </div>
+              
+              <div className="rounded-2xl px-6 py-4 bg-gradient-to-br from-primary/20 to-primary/10 text-foreground border border-primary/20 backdrop-blur-sm shadow-lg">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <p className="text-base font-light text-muted-foreground">Thinking...</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Current streaming assistant message */}
           {currentAssistantMessage && (
             <div className="flex gap-4 animate-fade-in justify-start">
@@ -71,9 +87,6 @@ const ChatTranscript = ({ messages, currentAssistantMessage, state }: ChatTransc
               <div className="rounded-2xl px-6 py-4 max-w-[75%] bg-gradient-to-br from-primary/20 to-primary/10 text-foreground border border-primary/20 backdrop-blur-sm shadow-lg">
                 <p className="text-base leading-relaxed font-light">
                   {currentAssistantMessage}
-                  {state === "thinking" && (
-                    <Loader2 className="inline-block ml-2 h-4 w-4 animate-spin" />
-                  )}
                 </p>
               </div>
             </div>
