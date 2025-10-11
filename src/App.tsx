@@ -13,6 +13,8 @@ import History from "./pages/dashboard/History";
 import Analytics from "./pages/dashboard/Analytics";
 import Billing from "./pages/dashboard/Billing";
 import Settings from "./pages/dashboard/Settings";
+import TeamManagement from "./pages/dashboard/TeamManagement";
+import Integrations from "./pages/dashboard/Integrations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +34,8 @@ const App = () => (
             <Route path="widgets" element={<Widgets />} />
             <Route path="history" element={<History />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="team" element={<TeamManagement />} />
+            <Route path="integrations" element={<Integrations />} />
             <Route path="billing" element={<Billing />} />
             <Route path="settings" element={<Settings />} />
           </Route>

@@ -8,6 +8,8 @@ import {
   Bot,
   Palette,
   LogOut,
+  Users,
+  Plug,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +32,8 @@ const menuItems = [
   { title: "Widget Customisation", url: "/dashboard/widgets", icon: Palette },
   { title: "Call History", url: "/dashboard/history", icon: History },
   { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
+  { title: "Team Management", url: "/dashboard/team", icon: Users },
+  { title: "Integrations", url: "/dashboard/integrations", icon: Plug },
   { title: "Usage & Billing", url: "/dashboard/billing", icon: CreditCard },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },
 ];
