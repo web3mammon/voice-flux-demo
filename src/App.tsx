@@ -4,6 +4,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import { DashboardLayout } from "./components/DashboardLayout";
+import DashboardHome from "./pages/dashboard/Home";
+import AIConfig from "./pages/dashboard/AIConfig";
+import Widgets from "./pages/dashboard/Widgets";
+import History from "./pages/dashboard/History";
+import Analytics from "./pages/dashboard/Analytics";
+import Billing from "./pages/dashboard/Billing";
+import Settings from "./pages/dashboard/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -16,6 +25,16 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/dashboard" element={<DashboardLayout />}>
+            <Route index element={<DashboardHome />} />
+            <Route path="ai-config" element={<AIConfig />} />
+            <Route path="widgets" element={<Widgets />} />
+            <Route path="history" element={<History />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="billing" element={<Billing />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

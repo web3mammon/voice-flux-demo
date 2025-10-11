@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import VoiceOrb from "@/components/VoiceOrb";
 import ChatTranscript from "@/components/ChatTranscript";
-import { Button } from "@/components/ui/button";
 import { Mic, MicOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AudioRecorder } from "@/utils/audioUtils";
@@ -135,6 +136,13 @@ const Index = () => {
     });
   };
   return <div className="min-h-screen flex flex-col p-6 relative overflow-hidden">
+      {/* Sign In Button */}
+      <div className="absolute top-4 right-4 z-20">
+        <Link to="/auth">
+          <Button variant="outline">Sign In</Button>
+        </Link>
+      </div>
+
       {/* Background gradient effects */}
       <div className="absolute inset-0 bg-gradient-radial from-primary/10 via-transparent to-transparent" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-secondary/20 via-transparent to-transparent blur-3xl" />
