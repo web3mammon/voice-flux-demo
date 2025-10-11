@@ -277,8 +277,9 @@ async function generateAudio(text: string, apiKey: string, config: any): Promise
   try {
     const voiceId = config?.voice_id || 'YhNmhaaLcHbuyfVn0UeL';
     
+    // Use ElevenLabs STREAMING endpoint
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
       {
         method: 'POST',
         headers: {
@@ -302,14 +303,34 @@ async function generateAudio(text: string, apiKey: string, config: any): Promise
       return null;
     }
 
-    const audioArrayBuffer = await response.arrayBuffer();
-    const bytes = new Uint8Array(audioArrayBuffer);
+    // Collect all audio chunks from the stream
+    const reader = response.body?.getReader();
+    if (!reader) {
+      console.error('No response body from ElevenLabs');
+      return null;
+    }
+
+    const chunks: Uint8Array[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+
+    // Combine all chunks
+    const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+    const combinedAudio = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combinedAudio.set(chunk, offset);
+      offset += chunk.length;
+    }
     
     // Convert to base64 in chunks to avoid stack overflow
     let binary = '';
     const chunkSize = 0x8000; // 32KB chunks
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    for (let i = 0; i < combinedAudio.length; i += chunkSize) {
+      const chunk = combinedAudio.subarray(i, Math.min(i + chunkSize, combinedAudio.length));
       binary += String.fromCharCode.apply(null, Array.from(chunk));
     }
     return btoa(binary);
