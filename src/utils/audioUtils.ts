@@ -1,233 +1,100 @@
 export class AudioRecorder {
-  private mediaRecorder: MediaRecorder | null = null;
-  private audioChunks: Blob[] = [];
-  private stream: MediaStream | null = null;
-  private onDataCallback: ((audioBlob: Blob) => void) | null = null;
   private audioContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
-  private vadCheckInterval: number | null = null;
-  private isSpeaking: boolean = false;
-  private silenceStart: number | null = null;
-  private speechStart: number | null = null;
-  private isActive: boolean = false; // Track if we should continue recording
-  private isProcessing: boolean = false; // Track if we're currently processing audio
-  private readonly SILENCE_THRESHOLD = 0.01; // Volume threshold for silence
-  private readonly SILENCE_DURATION = 1500; // ms of silence before stopping
-  private readonly MIN_SPEECH_DURATION = 500; // ms minimum speech before considering it valid
+  private mediaStream: MediaStream | null = null;
+  private processor: ScriptProcessorNode | null = null;
+  private source: MediaStreamAudioSourceNode | null = null;
+  private onChunkCallback: ((audioBase64: string) => void) | null = null;
 
-  async start(onData: (audioBlob: Blob) => void) {
+  async start(onChunk: (audioBase64: string) => void) {
+    this.onChunkCallback = onChunk;
+
     try {
-      console.log('AudioRecorder.start() called');
-      this.isActive = true;
-      this.onDataCallback = onData;
-      
-      console.log('Requesting microphone access...');
-      this.stream = await navigator.mediaDevices.getUserMedia({ 
+      console.log('[AudioRecorder] Requesting microphone...');
+
+      // Request microphone access
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-        } 
-      });
-      console.log('Microphone access granted, stream:', this.stream);
-
-      // Set up audio analysis for VAD
-      this.audioContext = new AudioContext();
-      const source = this.audioContext.createMediaStreamSource(this.stream);
-      this.analyser = this.audioContext.createAnalyser();
-      this.analyser.fftSize = 2048;
-      source.connect(this.analyser);
-      console.log('Audio analyser created for VAD');
-
-      const mimeType = 'audio/webm;codecs=opus';
-      console.log('Creating MediaRecorder with mimeType:', mimeType);
-      console.log('MediaRecorder supported:', MediaRecorder.isTypeSupported(mimeType));
-      
-      this.mediaRecorder = new MediaRecorder(this.stream, {
-        mimeType: mimeType
-      });
-      console.log('MediaRecorder created, state:', this.mediaRecorder.state);
-
-      this.mediaRecorder.ondataavailable = (event) => {
-        console.log('ondataavailable fired, data size:', event.data.size);
-        if (event.data.size > 0) {
-          this.audioChunks.push(event.data);
-          console.log('Audio chunk added, total chunks:', this.audioChunks.length);
+          sampleRate: 24000,
         }
-      };
+      });
 
-      this.mediaRecorder.onstop = () => {
-        console.log('MediaRecorder onstop fired, chunks:', this.audioChunks.length);
-        if (this.audioChunks.length > 0) {
-          const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-          console.log('Created audio blob, size:', audioBlob.size);
-          
-          // Mark as processing to prevent VAD from triggering during processing
-          this.isProcessing = true;
-          this.onDataCallback?.(audioBlob);
-          this.audioChunks = [];
-          
-          // Restart recording only if we're still actively listening
-          if (this.isActive && this.mediaRecorder && this.stream && this.vadCheckInterval) {
-            console.log('Restarting MediaRecorder for next utterance...');
-            this.mediaRecorder.start();
-            // Reset processing flag after restart
-            setTimeout(() => {
-              this.isProcessing = false;
-            }, 100);
-          }
-        } else {
-          console.warn('No audio chunks available in onstop');
+      console.log('[AudioRecorder] Microphone granted');
+
+      // Create audio context with 24kHz sample rate (matches Deepgram config)
+      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 24000
+      });
+
+      this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
+
+      // Create script processor for raw audio data (PCM16)
+      const bufferSize = 4096;
+      this.processor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
+
+      this.processor.onaudioprocess = (e) => {
+        if (!this.onChunkCallback) return;
+
+        const inputData = e.inputBuffer.getChannelData(0);
+
+        // Convert float32 to int16 (PCM16)
+        const pcm16 = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          const s = Math.max(-1, Math.min(1, inputData[i]));
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
+
+        // Convert to base64
+        const bytes = new Uint8Array(pcm16.buffer);
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+          binary += String.fromCharCode(...Array.from(chunk));
+        }
+        const audioBase64 = btoa(binary);
+
+        this.onChunkCallback(audioBase64);
       };
 
-      this.mediaRecorder.onerror = (event) => {
-        console.error('MediaRecorder error:', event);
-      };
+      // Connect: source -> processor -> destination
+      this.source.connect(this.processor);
+      this.processor.connect(this.audioContext.destination);
 
-      // Start continuous recording
-      console.log('Starting MediaRecorder...');
-      this.mediaRecorder.start();
-      console.log('MediaRecorder started, state:', this.mediaRecorder.state);
-      
-      // Start VAD monitoring
-      this.startVAD();
-      console.log('Audio recorder started with VAD');
+      console.log('[AudioRecorder] Started streaming PCM16 audio at 24kHz');
+
     } catch (error) {
-      console.error('Error starting audio recorder:', error);
+      console.error('[AudioRecorder] Error:', error);
       throw error;
     }
   }
 
-  private startVAD() {
-    console.log('Starting VAD monitoring...');
-    this.vadCheckInterval = window.setInterval(() => {
-      if (!this.analyser) return;
-
-      const bufferLength = this.analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      this.analyser.getByteTimeDomainData(dataArray);
-
-      // Calculate RMS (volume)
-      let sum = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        const normalized = (dataArray[i] - 128) / 128;
-        sum += normalized * normalized;
-      }
-      const rms = Math.sqrt(sum / bufferLength);
-
-      const now = Date.now();
-      
-      if (rms > this.SILENCE_THRESHOLD) {
-        // Speech detected
-        if (!this.isSpeaking) {
-          console.log('Speech started, RMS:', rms);
-          this.isSpeaking = true;
-          this.speechStart = now;
-        }
-        this.silenceStart = null;
-      } else {
-        // Silence detected
-        if (this.isSpeaking && !this.silenceStart) {
-          console.log('Silence started');
-          this.silenceStart = now;
-        }
-
-        // Check if silence duration exceeded and we have valid speech
-        if (this.isSpeaking && this.silenceStart && this.speechStart) {
-          const silenceDuration = now - this.silenceStart;
-          const speechDuration = this.silenceStart - this.speechStart;
-          
-          if (silenceDuration >= this.SILENCE_DURATION && speechDuration >= this.MIN_SPEECH_DURATION) {
-            console.log(`Speech ended after ${speechDuration}ms, silence for ${silenceDuration}ms`);
-            this.processRecording();
-          }
-        }
-      }
-    }, 100); // Check every 100ms
-  }
-
-  private processRecording() {
-    // Don't process if already processing or not in recording state
-    if (this.isProcessing) {
-      console.log('Already processing audio, skipping VAD trigger');
-      return;
-    }
-    
-    console.log('Processing recording due to VAD...');
-    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-      this.mediaRecorder.stop();
-      // Reset VAD state
-      this.isSpeaking = false;
-      this.silenceStart = null;
-      this.speechStart = null;
-    }
-  }
-
   stop() {
-    console.log('AudioRecorder.stop() called');
-    this.isActive = false; // Prevent restart
-    this.isProcessing = false; // Reset processing flag
-    
-    // Stop VAD monitoring
-    if (this.vadCheckInterval) {
-      clearInterval(this.vadCheckInterval);
-      this.vadCheckInterval = null;
+    console.log('[AudioRecorder] Stopping...');
+
+    if (this.processor) {
+      this.processor.disconnect();
+      this.processor = null;
     }
-    
-    // Stop media recorder
-    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      console.log('Stopping MediaRecorder...');
-      this.mediaRecorder.stop();
+
+    if (this.source) {
+      this.source.disconnect();
+      this.source = null;
     }
-    
-    // Stop audio context
+
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach(track => track.stop());
+      this.mediaStream = null;
+    }
+
     if (this.audioContext) {
       this.audioContext.close();
       this.audioContext = null;
     }
-    
-    // Stop stream
-    if (this.stream) {
-      console.log('Stopping stream tracks...');
-      this.stream.getTracks().forEach(track => {
-        console.log('Stopping track:', track.kind, track.label);
-        track.stop();
-      });
-    }
-    
-    this.audioChunks = [];
-    this.analyser = null;
-    this.isSpeaking = false;
-    this.silenceStart = null;
-    this.speechStart = null;
-    console.log('Audio recorder stopped');
-  }
 
-  isRecording(): boolean {
-    return this.mediaRecorder?.state === 'recording';
+    this.onChunkCallback = null;
+    console.log('[AudioRecorder] Stopped');
   }
 }
-
-export const playAudioFromBase64 = async (base64Audio: string) => {
-  try {
-    const audioBlob = new Blob(
-      [Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0))],
-      { type: 'audio/mpeg' }
-    );
-    const audioUrl = URL.createObjectURL(audioBlob);
-    const audio = new Audio(audioUrl);
-    
-    await audio.play();
-    
-    // Cleanup
-    audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-    };
-
-    return audio;
-  } catch (error) {
-    console.error('Error playing audio:', error);
-    throw error;
-  }
-};

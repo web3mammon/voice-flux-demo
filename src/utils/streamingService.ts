@@ -6,7 +6,8 @@ export interface Message {
 export interface StreamCallbacks {
   onUserText: (text: string) => void;
   onTextDelta: (delta: string) => void;
-  onAudioChunk: (audioBase64: string) => void;
+  onAudioChunk: (audioBase64: string, chunkIndex: number) => void;
+  onAudioComplete?: (totalChunks: number) => void;
   onComplete: (fullText: string) => void;
   onError: (error: string) => void;
 }
@@ -101,7 +102,11 @@ export const startVoiceStream = async (
                 callbacks.onTextDelta(parsed.text);
                 break;
               case 'audio_chunk':
-                callbacks.onAudioChunk(parsed.audio);
+                callbacks.onAudioChunk(parsed.audio, parsed.chunk_index || 0);
+                break;
+              case 'audio_complete':
+                console.log(`All ${parsed.totalChunks} audio chunks sent`);
+                callbacks.onAudioComplete?.(parsed.totalChunks);
                 break;
               case 'complete':
                 callbacks.onComplete(parsed.fullText);
