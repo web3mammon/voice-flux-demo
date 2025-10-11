@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,9 +16,25 @@ serve(async (req) => {
     const DEEPGRAM_API_KEY = Deno.env.get('DEEPGRAM_API_KEY');
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!DEEPGRAM_API_KEY || !OPENAI_API_KEY || !ELEVENLABS_API_KEY) {
+    if (!DEEPGRAM_API_KEY || !OPENAI_API_KEY || !ELEVENLABS_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error('Missing required API keys');
+    }
+
+    // Initialize Supabase client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Fetch active AI config
+    const { data: config, error: configError } = await supabase
+      .from('ai_config')
+      .select('*')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (configError) {
+      console.error('Error fetching config:', configError);
     }
 
     const { audio, conversationHistory } = await req.json();
@@ -74,7 +91,7 @@ serve(async (req) => {
           const messages = [
             { 
               role: 'system', 
-              content: `You are Jennifer, NLC's friendly AI assistant. You help clients understand NLC's design services and capabilities.
+              content: config?.system_prompt || `You are Jennifer, NLC's friendly AI assistant. You help clients understand NLC's design services and capabilities.
 
 ABOUT NLC (NoLimit Creatives):
 NLC is a premium unlimited design subscription service that delivers professional design work on demand. They serve e-commerce brands, marketing agencies, real estate companies, and enterprises.
@@ -186,7 +203,7 @@ Keep all responses natural for voice conversation. Be enthusiastic about NLC's c
           // Send COMPLETE text to ElevenLabs once
           if (fullText.trim()) {
             console.log('Sending complete response to ElevenLabs:', fullText);
-            const audioChunk = await generateAudio(fullText, ELEVENLABS_API_KEY);
+            const audioChunk = await generateAudio(fullText, ELEVENLABS_API_KEY, config);
             if (audioChunk) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
                 type: 'audio_chunk', 
@@ -235,10 +252,26 @@ Keep all responses natural for voice conversation. Be enthusiastic about NLC's c
   }
 });
 
-async function generateAudio(text: string, apiKey: string): Promise<string | null> {
+async function generateAudio(text: string, apiKey: string, config: any): Promise<string | null> {
   try {
+    // Map voice names to ElevenLabs voice IDs
+    const voiceMap: Record<string, string> = {
+      'Aria': '9BWtsMINqrJLrRacOk9x',
+      'Roger': 'CwhRBWXzGAHq8TQ4Fs17',
+      'Sarah': 'EXAVITQu4vr4xnSDxMaL',
+      'Laura': 'FGY2WhTYpPnrIDTdsKH5',
+      'Charlie': 'IKne3meq5aSn9XLyUdCD',
+      'George': 'JBFqnCBsd6RMkjVDRZzb',
+      'Callum': 'N2lVS1w4EtoT3dr4eOWO',
+      'River': 'SAz9YHcvj6GT2YYXdXww',
+      'Liam': 'TX3LPaxmHKxFdv7VOQHJ',
+      'Charlotte': 'XB0fDUnXU5powFXDhCwa',
+    };
+
+    const voiceId = voiceMap[config?.voice_id || 'Aria'] || '9BWtsMINqrJLrRacOk9x';
+    
     const response = await fetch(
-      'https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM',
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
         method: 'POST',
         headers: {
@@ -249,8 +282,9 @@ async function generateAudio(text: string, apiKey: string): Promise<string | nul
           text,
           model_id: 'eleven_flash_v2_5',
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
+            stability: config?.voice_stability || 0.5,
+            similarity_boost: config?.voice_clarity || 0.75,
+            speed: config?.voice_speed || 1.0,
           },
         }),
       }

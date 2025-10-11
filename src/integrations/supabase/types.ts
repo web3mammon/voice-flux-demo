@@ -16,28 +16,61 @@ export type Database = {
     Tables: {
       ai_config: {
         Row: {
+          auto_escalate_enabled: boolean | null
+          auto_escalate_threshold: number | null
+          collect_email_enabled: boolean | null
           created_at: string | null
           created_by: string | null
           id: string
           is_active: boolean | null
+          max_call_duration: number | null
+          profanity_filter: string | null
           prompt_version: string
+          send_summary_enabled: boolean | null
           system_prompt: string
+          troll_detection_enabled: boolean | null
+          voice_clarity: number | null
+          voice_id: string | null
+          voice_speed: number | null
+          voice_stability: number | null
         }
         Insert: {
+          auto_escalate_enabled?: boolean | null
+          auto_escalate_threshold?: number | null
+          collect_email_enabled?: boolean | null
           created_at?: string | null
           created_by?: string | null
           id?: string
           is_active?: boolean | null
+          max_call_duration?: number | null
+          profanity_filter?: string | null
           prompt_version: string
+          send_summary_enabled?: boolean | null
           system_prompt: string
+          troll_detection_enabled?: boolean | null
+          voice_clarity?: number | null
+          voice_id?: string | null
+          voice_speed?: number | null
+          voice_stability?: number | null
         }
         Update: {
+          auto_escalate_enabled?: boolean | null
+          auto_escalate_threshold?: number | null
+          collect_email_enabled?: boolean | null
           created_at?: string | null
           created_by?: string | null
           id?: string
           is_active?: boolean | null
+          max_call_duration?: number | null
+          profanity_filter?: string | null
           prompt_version?: string
+          send_summary_enabled?: boolean | null
           system_prompt?: string
+          troll_detection_enabled?: boolean | null
+          voice_clarity?: number | null
+          voice_id?: string | null
+          voice_speed?: number | null
+          voice_stability?: number | null
         }
         Relationships: []
       }
@@ -122,6 +155,76 @@ export type Database = {
         }
         Relationships: []
       }
+      prompt_versions: {
+        Row: {
+          config_id: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          system_prompt: string
+          version_number: number
+        }
+        Insert: {
+          config_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          system_prompt: string
+          version_number: number
+        }
+        Update: {
+          config_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          system_prompt?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_versions_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "ai_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      response_templates: {
+        Row: {
+          config_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          template_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          config_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          template_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          config_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          template_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "response_templates_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "ai_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -148,6 +251,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_next_version_number: {
+        Args: { p_config_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
