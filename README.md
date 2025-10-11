@@ -1,8 +1,33 @@
-# Welcome to your Lovable project
+# NLC Voice AI Assistant - Jennifer
+
+An intelligent voice assistant for NLC (No Limit Creatives) that helps clients learn about design services, pricing plans, and connect with the team.
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/2a16301d-e44b-4d8e-9819-763857c4790d
+
+## Features
+
+- **Voice Interaction**: Speak naturally with Jennifer, NLC's AI assistant
+- **Real-time Processing**: 
+  - Speech-to-text via Deepgram
+  - AI responses powered by OpenAI GPT
+  - Text-to-speech via ElevenLabs
+- **Chat Interface**: Visual transcript of conversations with thinking indicators
+- **NLC Knowledge**: Jennifer knows about:
+  - All NLC design services (Social Media Ads, Website Design, Branding, etc.)
+  - Pricing plans (Digital Ads, Ecom, Marketing, Full Stack)
+  - Special services (White Glove Concierge, unlimited revisions)
+  - Industries served (E-commerce, Marketing Agencies, Real Estate, Enterprise)
+
+## Technology Stack
+
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS
+- **Backend**: Lovable Cloud (Supabase Edge Functions)
+- **AI Services**:
+  - Deepgram for speech recognition
+  - OpenAI GPT for conversational AI
+  - ElevenLabs for voice synthesis
 
 ## How can I edit this code?
 
