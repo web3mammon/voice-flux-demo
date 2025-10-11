@@ -246,6 +246,60 @@ export type Database = {
         }
         Relationships: []
       }
+      widget_config: {
+        Row: {
+          allowed_urls: string[] | null
+          button_icon_url: string | null
+          button_text: string | null
+          created_at: string | null
+          custom_position: Json | null
+          display_mode: string | null
+          hide_on_mobile: boolean | null
+          id: string
+          is_active: boolean | null
+          position: string | null
+          primary_color: string | null
+          trigger_delay: number | null
+          trigger_type: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          allowed_urls?: string[] | null
+          button_icon_url?: string | null
+          button_text?: string | null
+          created_at?: string | null
+          custom_position?: Json | null
+          display_mode?: string | null
+          hide_on_mobile?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          position?: string | null
+          primary_color?: string | null
+          trigger_delay?: number | null
+          trigger_type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          allowed_urls?: string[] | null
+          button_icon_url?: string | null
+          button_text?: string | null
+          created_at?: string | null
+          custom_position?: Json | null
+          display_mode?: string | null
+          hide_on_mobile?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          position?: string | null
+          primary_color?: string | null
+          trigger_delay?: number | null
+          trigger_type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
