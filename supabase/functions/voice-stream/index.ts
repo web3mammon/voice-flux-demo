@@ -165,6 +165,8 @@ Keep all responses natural for voice conversation. Be enthusiastic about NLC's c
           const decoder = new TextDecoder();
           let buffer = '';
           let fullText = '';
+          let sentenceBuffer = '';
+          const sentenceEndings = /[.!?]\s/;
 
           while (true) {
             const { done, value } = await reader.read();
@@ -185,12 +187,32 @@ Keep all responses natural for voice conversation. Be enthusiastic about NLC's c
                   
                   if (content) {
                     fullText += content;
+                    sentenceBuffer += content;
 
                     // Send text delta
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
                       type: 'text_delta', 
                       text: content 
                     })}\n\n`));
+
+                    // Check if we have a complete sentence
+                    const match = sentenceBuffer.match(sentenceEndings);
+                    if (match) {
+                      const endIndex = sentenceBuffer.indexOf(match[0]) + match[0].length;
+                      const completeSentence = sentenceBuffer.slice(0, endIndex).trim();
+                      sentenceBuffer = sentenceBuffer.slice(endIndex);
+
+                      if (completeSentence) {
+                        console.log('Generating audio for chunk:', completeSentence);
+                        const audioChunk = await generateAudio(completeSentence, ELEVENLABS_API_KEY, config);
+                        if (audioChunk) {
+                          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                            type: 'audio_chunk', 
+                            audio: audioChunk 
+                          })}\n\n`));
+                        }
+                      }
+                    }
                   }
                 } catch (e) {
                   console.error('Parse error:', e);
@@ -199,10 +221,10 @@ Keep all responses natural for voice conversation. Be enthusiastic about NLC's c
             }
           }
 
-          // Send COMPLETE text to ElevenLabs once
-          if (fullText.trim()) {
-            console.log('Sending complete response to ElevenLabs:', fullText);
-            const audioChunk = await generateAudio(fullText, ELEVENLABS_API_KEY, config);
+          // Send any remaining text to ElevenLabs
+          if (sentenceBuffer.trim()) {
+            console.log('Generating audio for final chunk:', sentenceBuffer);
+            const audioChunk = await generateAudio(sentenceBuffer.trim(), ELEVENLABS_API_KEY, config);
             if (audioChunk) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
                 type: 'audio_chunk', 
@@ -253,21 +275,7 @@ Keep all responses natural for voice conversation. Be enthusiastic about NLC's c
 
 async function generateAudio(text: string, apiKey: string, config: any): Promise<string | null> {
   try {
-    // Map voice names to ElevenLabs voice IDs
-    const voiceMap: Record<string, string> = {
-      'Aria': '9BWtsMINqrJLrRacOk9x',
-      'Roger': 'CwhRBWXzGAHq8TQ4Fs17',
-      'Sarah': 'EXAVITQu4vr4xnSDxMaL',
-      'Laura': 'FGY2WhTYpPnrIDTdsKH5',
-      'Charlie': 'IKne3meq5aSn9XLyUdCD',
-      'George': 'JBFqnCBsd6RMkjVDRZzb',
-      'Callum': 'N2lVS1w4EtoT3dr4eOWO',
-      'River': 'SAz9YHcvj6GT2YYXdXww',
-      'Liam': 'TX3LPaxmHKxFdv7VOQHJ',
-      'Charlotte': 'XB0fDUnXU5powFXDhCwa',
-    };
-
-    const voiceId = voiceMap[config?.voice_id || 'Aria'] || '9BWtsMINqrJLrRacOk9x';
+    const voiceId = config?.voice_id || 'YhNmhaaLcHbuyfVn0UeL';
     
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
