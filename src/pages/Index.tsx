@@ -26,7 +26,8 @@ const Index = () => {
       return;
     }
     console.log('Processing audio, blob size:', audioBlob.size);
-    setState("thinking");
+    
+    // Don't set thinking state here - wait for user text first
     setCurrentAssistantMessage("");
 
     // Clear existing queue for new response
@@ -41,6 +42,8 @@ const Index = () => {
             role: "user",
             content: text
           }]);
+          // NOW set thinking state after user text appears
+          setState("thinking");
         },
         onTextDelta: delta => {
           setCurrentAssistantMessage(prev => prev + delta);
