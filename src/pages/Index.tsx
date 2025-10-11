@@ -149,10 +149,10 @@ const Index = () => {
         {/* Header */}
         <div className="text-center space-y-4 py-8 animate-fade-in">
           <h1 className="text-6xl font-extralight tracking-tight bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-            Voice AI Agent
+            Meet Jennifer
           </h1>
           <p className="text-muted-foreground text-lg font-light">
-            Powered by Deepgram Flux • GPT-4.1 • ElevenLabs
+            NLC's new all round assistant
           </p>
         </div>
 
