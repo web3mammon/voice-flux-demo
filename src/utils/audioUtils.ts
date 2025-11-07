@@ -5,7 +5,7 @@
 export class AudioPlayer {
   private audioContext: AudioContext | null = null;
   private queue: ArrayBuffer[] = [];
-  private isPlaying = false;
+  private _isPlaying = false;
   private gainNode: GainNode | null = null;
   private nextStartTime = 0;
   private scheduledBuffers: AudioBufferSourceNode[] = [];
@@ -82,6 +82,7 @@ export class AudioPlayer {
     }
 
     source.start(this.nextStartTime);
+    this._isPlaying = true; // Mark as playing
 
     // Update next start time for seamless playback
     this.nextStartTime += audioBuffer.duration;
@@ -94,6 +95,11 @@ export class AudioPlayer {
       const index = this.scheduledBuffers.indexOf(source);
       if (index > -1) {
         this.scheduledBuffers.splice(index, 1);
+      }
+
+      // If no more scheduled buffers, mark as not playing
+      if (this.scheduledBuffers.length === 0) {
+        this._isPlaying = false;
       }
     };
 
@@ -112,7 +118,7 @@ export class AudioPlayer {
 
     this.scheduledBuffers = [];
     this.queue = [];
-    this.isPlaying = false;
+    this._isPlaying = false;
     this.nextStartTime = 0;
     this.chunkBuffer = {};
     this.nextChunkToPlay = 0;
@@ -142,6 +148,10 @@ export class AudioPlayer {
     }
 
     console.log('[AudioPlayer] Cleaned up');
+  }
+
+  isPlaying(): boolean {
+    return this._isPlaying;
   }
 }
 

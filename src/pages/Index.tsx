@@ -46,6 +46,11 @@ const Index = () => {
         onTranscriptUpdate: (text, isFinal) => {
           if (isFinal) {
             console.log('[Index] Final transcript:', text);
+
+            // Always interrupt when user speaks (stops audio + backend processing)
+            console.log('[Index] User spoke - triggering interrupt');
+            wsServiceRef.current?.interrupt();
+
             setMessages(prev => [...prev, { role: "user", content: text }]);
             setState("thinking");
           }

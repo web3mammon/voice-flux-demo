@@ -112,6 +112,21 @@ export class VoiceWebSocketService {
     }
   }
 
+  interrupt() {
+    // Stop audio playback immediately
+    this.audioPlayer.stop();
+
+    // Send interrupt signal to backend
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      console.log('[WebSocket] Sending interrupt signal');
+      this.ws.send(JSON.stringify({ type: 'interrupt' }));
+    }
+  }
+
+  isPlaying(): boolean {
+    return this.audioPlayer.isPlaying();
+  }
+
   disconnect() {
     this.audioPlayer.stop();
     this.ws?.close();

@@ -242,6 +242,9 @@ serve(async (req) => {
         case 'audio.chunk':
           await handleAudioChunk(sessionId, data.audio, socket);
           break;
+        case 'interrupt':
+          await handleInterrupt(sessionId, socket);
+          break;
         case 'session.end':
           await handleEndSession(sessionId, socket);
           break;
@@ -794,6 +797,27 @@ async function generateSpeechChunk(sessionId: string, text: string, socket: WebS
   } catch (error) {
     console.error(`[Cartesia-Chunk #${chunkIndex}] Error:`, error);
   }
+}
+
+async function handleInterrupt(sessionId: string, socket: WebSocket) {
+  console.log('[Interrupt] User interrupted AI response');
+
+  const session = sessions.get(sessionId);
+  if (!session) return;
+
+  // Don't close Cartesia - just reset context to cancel current generation
+  // Cartesia will ignore chunks with old context_id
+  session.currentContextId = null;
+  session.isProcessing = false;
+  session.audioChunkIndex = 0; // Reset chunk counter
+
+  // Notify frontend that interrupt was processed
+  socket.send(JSON.stringify({
+    type: 'interrupt.acknowledged',
+    message: 'Interrupt processed'
+  }));
+
+  console.log('[Interrupt] AI interrupted, ready for new input');
 }
 
 async function handleEndSession(sessionId: string, socket: WebSocket) {
