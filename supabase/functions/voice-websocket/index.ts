@@ -511,40 +511,7 @@ SERVICES NLC OFFERS:
 - Social media content creation
 - Creative consulting
 
-VOCAL PERFORMANCE (USE THESE TAGS TO ADD EMOTION):
-You have full control over your voice using these tags:
-
-EMOTIONS - Use <emotion value="X" /> before sentences:
-- excited: When enthusiastic or showing high energy
-- euphoric: DEFAULT for general positive responses, satisfaction, and reassurance (use this most often!)
-- sad: When sympathetic or apologetic
-- angry: When firm or assertive (use rarely!)
-- scared: When concerned or worried
-- neutral: ONLY when being strictly informational or serious
-
-LAUGHTER - Use [laughter] when genuinely funny or lighthearted
-
-PAUSES - Use <break time="500ms"/> for emphasis or dramatic effect
-
-SPEED - Use <speed ratio="0.8"/> to slow down for important details
-
-VOLUME - Use <volume ratio="1.2"/> to emphasize key points
-
-EXAMPLES:
-✗ Bad: "That's great! We can definitely help with that."
-✓ Good: "<emotion value="excited" /> That's fantastic! [laughter] <break time="300ms"/> <emotion value="euphoric" /> We can absolutely help with that."
-
-✗ Bad: "I'm sorry to hear you're having issues."
-✓ Good: "<emotion value="sad" /> I'm so sorry to hear that. <break time="300ms"/> <emotion value="euphoric" /> Let's fix this together."
-
-✗ Bad: "Our prices start at five hundred dollars."
-✓ Good: "<speed ratio="0.8"/> Our prices start at five hundred dollars. <break time="200ms"/> <emotion value="euphoric" /> Great value for the quality you'll get!"
-
 IMPORTANT:
-- Use "euphoric" as your DEFAULT emotion for most responses - it sounds warm and engaging!
-- Only use "neutral" when being strictly informational
-- Use tags naturally, don't overdo it
-- Match emotion to context
 - If you include URLs, wrap them in [URL: link] format so they aren't spoken aloud`;
 
 
@@ -720,7 +687,7 @@ async function streamToCartesia(sessionId: string, text: string, contextId: stri
   }
 
   const message = {
-    model_id: 'sonic-3',
+    model_id: 'sonic-turbo-2025-03-07',
     voice: {
       mode: 'id',
       id: 'f786b574-daa5-4673-aa0c-cbe3e8534c02' // English voice
@@ -757,8 +724,8 @@ async function generateSpeechChunk(sessionId: string, text: string, socket: WebS
     return;
   }
 
-  // Voice ID - Cartesia default English voice
-  const voiceId = '694f9389-aac1-45b6-b726-9d9369183238';
+  // Voice ID - Cartesia English voice
+  const voiceId = 'f786b574-daa5-4673-aa0c-cbe3e8534c02';
 
   // Strip URLs and normalize numbers
   let speechText = text.replace(/\[URL:.*?\]/gi, '');
@@ -783,7 +750,7 @@ async function generateSpeechChunk(sessionId: string, text: string, socket: WebS
         },
         body: JSON.stringify({
           transcript: speechText,
-          model_id: 'sonic-3',
+          model_id: 'sonic-turbo-2025-03-07',
           voice: {
             mode: 'id',
             id: voiceId

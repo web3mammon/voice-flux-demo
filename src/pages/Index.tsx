@@ -77,12 +77,14 @@ const Index = () => {
       // Connect WebSocket
       await wsServiceRef.current.connect(supabaseUrl);
 
-      // Start audio recording
+      // Start audio recording - streaming mode (no batch processing)
       audioRecorderRef.current = new AudioRecorder();
-      await audioRecorderRef.current.start((audioBase64) => {
-        // Send audio chunks to WebSocket
-        wsServiceRef.current?.sendAudioChunk(audioBase64);
-      });
+      await audioRecorderRef.current.start(
+        // onChunk: Send audio chunks to WebSocket for real-time streaming
+        (audioBase64) => {
+          wsServiceRef.current?.sendAudioChunk(audioBase64);
+        }
+      );
 
       setIsActive(true);
       setState("listening");

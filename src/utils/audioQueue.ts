@@ -4,6 +4,7 @@ export class AudioQueue {
   private isPlaying = false;
   private currentAudio: HTMLAudioElement | null = null;
   private onPlaybackComplete?: () => void;
+  private audioComplete = false; // Track when server says no more chunks
 
   constructor(onPlaybackComplete?: () => void) {
     this.onPlaybackComplete = onPlaybackComplete;
@@ -11,6 +12,14 @@ export class AudioQueue {
 
   async addChunk(audioBase64: string, chunkIndex: number = 0) {
     console.log(`[AudioQueue] Adding chunk #${chunkIndex}, nextToPlay: #${this.nextChunkToPlay}, isPlaying: ${this.isPlaying}`);
+
+    // If chunk #0 arrives, it's a NEW response - reset all audio state
+    if (chunkIndex === 0 && (this.audioComplete || this.nextChunkToPlay > 0)) {
+      console.log('[AudioQueue] 🔄 New audio response starting - reset state');
+      this.chunkBuffer = {};
+      this.nextChunkToPlay = 0;
+      this.audioComplete = false;
+    }
 
     // Store chunk by index
     this.chunkBuffer[chunkIndex] = audioBase64;
@@ -33,6 +42,14 @@ export class AudioQueue {
     // Check if the next sequential chunk is available
     if (!this.chunkBuffer.hasOwnProperty(this.nextChunkToPlay)) {
       this.isPlaying = false;
+
+      // If audio is complete and chunk doesn't exist, we're done
+      if (this.audioComplete) {
+        console.log(`[AudioQueue] ✅ All audio chunks played successfully`);
+        this.onPlaybackComplete?.();
+        return;
+      }
+
       console.log(`[AudioQueue] ⏸️ Waiting for chunk #${this.nextChunkToPlay}. Buffer:`, Object.keys(this.chunkBuffer));
       return;
     }
@@ -82,6 +99,7 @@ export class AudioQueue {
     this.chunkBuffer = {};
     this.nextChunkToPlay = 0;
     this.isPlaying = false;
+    this.audioComplete = false;
   }
 
   clear() {
@@ -93,23 +111,26 @@ export class AudioQueue {
     this.chunkBuffer = {};
     this.nextChunkToPlay = 0;
     this.isPlaying = false;
+    this.audioComplete = false;
     console.log('[AudioQueue] Reset for new conversation');
   }
 
   finalize(totalChunks: number) {
     // Called when server confirms all chunks have been sent
-    console.log(`[AudioQueue] 🏁 Finalize called. Total chunks: ${totalChunks}, nextToPlay: ${this.nextChunkToPlay}`);
+    console.log(`[AudioQueue] ✅ Streaming audio complete - no more chunks coming. Total: ${totalChunks}, nextToPlay: ${this.nextChunkToPlay}`);
+
+    // Set completion flag
+    this.audioComplete = true;
+
+    // Try to play any remaining chunks
+    if (!this.isPlaying) {
+      this.playNext();
+    }
 
     // Check if we're waiting for a chunk that will never arrive
     if (!this.isPlaying && this.nextChunkToPlay < totalChunks) {
       console.log(`[AudioQueue] ⚠️ Missing chunks detected! Expected ${totalChunks}, only have up to ${this.nextChunkToPlay - 1}`);
       console.log(`[AudioQueue] Buffered chunks:`, Object.keys(this.chunkBuffer));
-    }
-
-    // If we've finished playing all chunks, call completion
-    if (this.nextChunkToPlay >= totalChunks && !this.isPlaying) {
-      console.log('[AudioQueue] ✅ All chunks played successfully');
-      this.onPlaybackComplete?.();
     }
   }
 }

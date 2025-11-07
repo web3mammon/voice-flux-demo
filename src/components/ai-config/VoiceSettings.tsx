@@ -26,7 +26,7 @@ export function VoiceSettings({ config, onUpdate }: VoiceSettingsProps) {
     <Card>
       <CardHeader>
         <CardTitle>Voice Settings</CardTitle>
-        <CardDescription>Configure ElevenLabs voice parameters</CardDescription>
+        <CardDescription>Configure voice parameters</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">

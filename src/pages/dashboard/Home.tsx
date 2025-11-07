@@ -271,7 +271,7 @@ export default function DashboardHome() {
         {/* AI Prompt Config */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Current GPT Prompt Configuration</CardTitle>
+            <CardTitle>Current AI Prompt Configuration</CardTitle>
             <CardDescription>Active AI assistant configuration</CardDescription>
           </CardHeader>
           <CardContent>
