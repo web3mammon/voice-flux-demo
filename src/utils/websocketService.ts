@@ -81,6 +81,10 @@ export class VoiceWebSocketService {
           // No reset here - AudioPlayer auto-resets when chunk #0 of next response arrives
           break;
 
+        case 'interrupt.acknowledged':
+          console.log('[WebSocket] Interrupt acknowledged by backend');
+          break;
+
         case 'error':
           this.onError?.(data.message);
           break;

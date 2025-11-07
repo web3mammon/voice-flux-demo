@@ -20,6 +20,7 @@ const Index = () => {
 
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const wsServiceRef = useRef<VoiceWebSocketService | null>(null);
+  const hasInterruptedRef = useRef(false); // Track if we've interrupted for current turn
 
   useEffect(() => {
     // Cleanup on unmount
@@ -44,20 +45,28 @@ const Index = () => {
       // Set up callbacks
       wsServiceRef.current.setCallbacks({
         onTranscriptUpdate: (text, isFinal) => {
+          // Interrupt on FIRST partial transcript (as soon as user starts speaking)
+          if (!isFinal && !hasInterruptedRef.current) {
+            // Check if audio is actually playing before interrupting
+            if (wsServiceRef.current?.isPlaying()) {
+              console.log('[Index] User started speaking - interrupting AI');
+              wsServiceRef.current.interrupt();
+              hasInterruptedRef.current = true; // Mark that we've interrupted for this turn
+            }
+          }
+
           if (isFinal) {
             console.log('[Index] Final transcript:', text);
-
-            // Always interrupt when user speaks (stops audio + backend processing)
-            console.log('[Index] User spoke - triggering interrupt');
-            wsServiceRef.current?.interrupt();
-
             setMessages(prev => [...prev, { role: "user", content: text }]);
             setState("thinking");
+            // Reset interrupt flag for next turn (will be reset when AI responds)
           }
         },
         onTextChunk: (text) => {
           setCurrentAssistantMessage(prev => prev + text);
           setState("speaking");
+          // Reset interrupt flag when AI starts speaking (ready for next interrupt)
+          hasInterruptedRef.current = false;
         },
         onAudioChunk: (audio, index) => {
           // Audio handled internally by WebSocketService
