@@ -21,6 +21,7 @@ const Index = () => {
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const wsServiceRef = useRef<VoiceWebSocketService | null>(null);
   const hasInterruptedRef = useRef(false); // Track if we've interrupted for current turn
+  const ambientAudioRef = useRef<HTMLAudioElement | null>(null); // Ambient background audio
 
   useEffect(() => {
     // Cleanup on unmount
@@ -30,6 +31,10 @@ const Index = () => {
       }
       if (audioRecorderRef.current) {
         audioRecorderRef.current.stop();
+      }
+      if (ambientAudioRef.current) {
+        ambientAudioRef.current.pause();
+        ambientAudioRef.current = null;
       }
     };
   }, []);
@@ -91,6 +96,17 @@ const Index = () => {
       // Connect WebSocket
       await wsServiceRef.current.connect(supabaseUrl);
 
+      // Start ambient background audio (plays throughout entire conversation)
+      console.log('[Index] Starting ambient background audio...');
+      const supabaseStorageUrl = 'https://xkezkkfafxqmmxpdvtrp.supabase.co/storage/v1/object/public/ambient-audio/office-ambience.mp3';
+      ambientAudioRef.current = new Audio(supabaseStorageUrl);
+      ambientAudioRef.current.loop = true;
+      ambientAudioRef.current.volume = 0.10; // 10% volume - subtle background
+      ambientAudioRef.current.play().catch(err => {
+        console.log('[Index] Ambient audio autoplay blocked (browser policy):', err);
+        // Non-critical - ambient is optional enhancement
+      });
+
       // Start audio recording - streaming mode (no batch processing)
       audioRecorderRef.current = new AudioRecorder();
       await audioRecorderRef.current.start(
@@ -120,6 +136,14 @@ const Index = () => {
 
   const stopConversation = () => {
     console.log('[Index] Stopping conversation...');
+
+    // Stop ambient background audio
+    if (ambientAudioRef.current) {
+      ambientAudioRef.current.pause();
+      ambientAudioRef.current.currentTime = 0;
+      ambientAudioRef.current = null;
+      console.log('[Index] Ambient audio stopped');
+    }
 
     if (audioRecorderRef.current) {
       audioRecorderRef.current.stop();
